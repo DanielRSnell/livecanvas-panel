@@ -1,0 +1,553 @@
+/**
+ * LC Element Tools - Frontend Styles
+ * 
+ * Styles for element selection, modal interface, and notifications
+ */
+
+/* ===== ELEMENT SELECTION ===== */
+
+/* Selector activation state */
+.lc-selector-active {
+    cursor: crosshair !important;
+}
+
+.lc-selector-active * {
+    cursor: crosshair !important;
+}
+
+/* Element hover state */
+.lc-element-hover {
+    outline: 2px dashed #007cba !important;
+    outline-offset: 2px !important;
+    position: relative !important;
+}
+
+/* Element selected state */
+.lc-element-selected {
+    outline: 3px solid #00a0d2 !important;
+    outline-offset: 2px !important;
+    background: rgba(0, 160, 210, 0.1) !important;
+    position: relative !important;
+}
+
+/* Element indicator */
+.lc-element-indicator {
+    position: fixed;
+    background: #007cba;
+    color: white;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    border-radius: 3px;
+    z-index: 999999;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lc-element-indicator:before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 10px;
+    border: 4px solid transparent;
+    border-top-color: #007cba;
+}
+
+/* ===== MODAL INTERFACE ===== */
+
+/* Modal overlay */
+.lc-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999998;
+    display: none;
+}
+
+.lc-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(2px);
+}
+
+/* Modal container */
+.lc-modal-container {
+    position: relative;
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    margin: 5vh auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: lcModalSlideIn 0.3s ease-out;
+}
+
+@keyframes lcModalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Modal header */
+.lc-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.lc-modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.lc-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.lc-modal-close:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+/* Modal content */
+.lc-modal-content {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Tab navigation */
+.lc-modal-tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.lc-tab-button {
+    flex: 1;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.lc-tab-button:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.lc-tab-button.active {
+    color: #007cba;
+    background: white;
+}
+
+.lc-tab-button.active:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #007cba;
+}
+
+/* Tab content */
+.lc-modal-body {
+    padding: 24px;
+}
+
+.lc-tab-content {
+    display: none;
+}
+
+.lc-tab-content.active {
+    display: block;
+}
+
+/* Form elements */
+.lc-form-group {
+    margin-bottom: 20px;
+}
+
+.lc-form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.lc-form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lc-form-control:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+}
+
+.lc-form-control[readonly] {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+textarea.lc-form-control {
+    resize: vertical;
+    min-height: 120px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.editor textarea {
+    outline: 0;
+}
+
+/* Monaco Editor Focus Border Override - Target specific structure */
+.monaco-editor-container .monaco-editor.no-user-select.vs-dark,
+.monaco-editor-container .monaco-diff-editor.no-user-select.vs-dark,  
+.monaco-editor-container .monaco-component.no-user-select.vs-dark {
+    --vscode-focusBorder: #3ecf8e !important;
+}
+
+.lc-help-text {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* Current classes display */
+.lc-current-classes {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+.lc-current-classes strong {
+    color: #2c3e50;
+}
+
+#lc-current-classes-list {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    color: #007cba;
+    margin-left: 8px;
+}
+
+/* Modal footer */
+.lc-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Buttons */
+.lc-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.lc-btn-primary {
+    background: #007cba;
+    color: white;
+}
+
+.lc-btn-primary:hover {
+    background: #005a87;
+}
+
+.lc-btn-primary:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.lc-btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.lc-btn-secondary:hover {
+    background: #545b62;
+}
+
+/* ===== NOTIFICATIONS ===== */
+
+.lc-notification {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    animation: lcNotificationSlideIn 0.3s ease-out;
+}
+
+@keyframes lcNotificationSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.lc-notification-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.lc-notification-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.lc-notification-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 12px;
+    opacity: 0.7;
+}
+
+.lc-notification-close:hover {
+    opacity: 1;
+}
+
+/* ===== ACTIVATION NOTICE ===== */
+
+.lc-activation-notice {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999997;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.lc-activation-notice.show {
+    transform: translateX(0);
+}
+
+.lc-notice-content {
+    display: flex;
+    align-items: center;
+    background: #007cba;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    max-width: 350px;
+}
+
+.lc-notice-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.lc-notice-text {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.lc-notice-dismiss {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 12px;
+    opacity: 0.8;
+}
+
+.lc-notice-dismiss:hover {
+    opacity: 1;
+}
+
+/* ===== STATUS INDICATOR ===== */
+
+.lc-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #6c757d;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 999996;
+    transition: all 0.2s ease;
+}
+
+.lc-status-indicator:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lc-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6c757d;
+    transition: background 0.2s ease;
+}
+
+.lc-status-indicator.active .lc-status-dot {
+    background: #28a745;
+    animation: lcStatusPulse 2s infinite;
+}
+
+@keyframes lcStatusPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.lc-status-text {
+    font-weight: 500;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+@media (max-width: 768px) {
+    .lc-modal-container {
+        width: 95%;
+        margin: 2vh auto;
+        max-height: 96vh;
+    }
+    
+    .lc-modal-header,
+    .lc-modal-body,
+    .lc-modal-footer {
+        padding: 16px;
+    }
+    
+    .lc-modal-footer {
+        flex-direction: column;
+    }
+    
+    .lc-btn {
+        width: 100%;
+    }
+    
+    .lc-activation-notice {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+    
+    .lc-notice-content {
+        max-width: none;
+    }
+    
+    .lc-status-indicator {
+        bottom: 10px;
+        right: 10px;
+    }
+}
+
+/* ===== BODY MODAL OPEN STATE ===== */
+
+.lc-modal-open {
+    overflow: hidden;
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+.lc-modal-container:focus {
+    outline: 2px solid #007cba;
+    outline-offset: -2px;
+}
+
+.lc-btn:focus,
+.lc-form-control:focus,
+.lc-tab-button:focus {
+    outline: 2px solid #007cba;
+    outline-offset: 2px;
+}
+
+/* ===== PRINT STYLES ===== */
+
+@media print {
+    .lc-modal,
+    .lc-activation-notice,
+    .lc-status-indicator,
+    .lc-element-hover,
+    .lc-element-selected {
+        display: none !important;
+    }
+}
