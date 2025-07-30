@@ -368,6 +368,36 @@ export function useLiveCanvasElementSelector(options: LiveCanvasElementSelectorO
     }));
   }, [state.selectedElement, state.hoveredElement, removeSelectionHighlight, removeHoverHighlight]);
 
+  // Manually set selected element (for programmatic selection like lc-main)
+  const setSelectedElement = useCallback((element: SelectedElement) => {
+    // Clear previous selection
+    if (state.selectedElement?.element) {
+      removeSelectionHighlight(state.selectedElement.element);
+    }
+    if (state.hoveredElement) {
+      removeHoverHighlight(state.hoveredElement);
+    }
+
+    // Add selection highlight to new element
+    if (element.element) {
+      addSelectionHighlight(element.element);
+    }
+
+    // Update state
+    setState(prev => ({
+      ...prev,
+      selectedElement: element,
+      hoveredElement: null,
+    }));
+
+    // Trigger onElementSelect callback
+    if (onElementSelect) {
+      onElementSelect(element);
+    }
+
+    console.log('LiveCanvas Element Selector: Manually set selected element', element.selector);
+  }, [state.selectedElement, state.hoveredElement, removeSelectionHighlight, removeHoverHighlight, addSelectionHighlight, onElementSelect]);
+
   // Setup/cleanup effect
   useEffect(() => {
     if (state.isActive) {
@@ -377,7 +407,7 @@ export function useLiveCanvasElementSelector(options: LiveCanvasElementSelectorO
     }
 
     return cleanupEventListeners;
-  }, [state.isActive, setupEventListeners, cleanupEventListeners]);
+  }, [state.isActive]); // Only depend on isActive, not the functions
 
   // Update toggle mode
   useEffect(() => {
@@ -392,5 +422,6 @@ export function useLiveCanvasElementSelector(options: LiveCanvasElementSelectorO
     toggleSelector,
     clearSelection,
     createSelectedElement,
+    setSelectedElement,
   };
 }

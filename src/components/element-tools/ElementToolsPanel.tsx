@@ -40,7 +40,9 @@ import {
   FileCode,
   Maximize2,
   Minimize2,
-  MousePointerSquare
+  MousePointerSquare,
+  FileText,
+  Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SelectedElement } from '@/types';
@@ -49,6 +51,7 @@ interface ElementToolsPanelProps {
   selectedElement: SelectedElement | null;
   onClose: () => void;
   onClearSelection?: () => void;
+  onSelectLcMain?: () => void;
   onRealTimeUpdate: (type: 'classes' | 'html' | 'attributes', value: string | Record<string, string>) => void;
   className?: string;
   toggleMode?: boolean;
@@ -97,6 +100,7 @@ export function ElementToolsPanel({
   selectedElement, 
   onClose, 
   onClearSelection,
+  onSelectLcMain,
   onRealTimeUpdate,
   className,
   toggleMode = false,
@@ -124,6 +128,14 @@ export function ElementToolsPanel({
       );
       setClassesValue(filteredClasses.join(' '));
       setHtmlValue(selectedElement.innerHTML);
+      
+      // If lc-main is selected, default to HTML tab
+      if (selectedElement.id === 'lc-main' || selectedElement.selector === 'main#lc-main' || selectedElement.selector === '#lc-main') {
+        setActiveTab('html');
+      } else {
+        // For other elements, default to classes tab
+        setActiveTab('classes');
+      }
     }
   }, [selectedElement]);
 
@@ -177,32 +189,10 @@ export function ElementToolsPanel({
   const handleHtmlChange = useCallback((newHtml: string) => {
     setHtmlValue(newHtml);
     
-    // Use LiveCanvas utilities for HTML updates
-    if (selectedElement?.selector) {
-      const setPageHTML = (window as any).setPageHTML || (window as any).LCUtils?.setPageHTML;
-      const updatePreviewSectorial = (window as any).updatePreviewSectorial || (window as any).LCUtils?.updatePreviewSectorial;
-      
-      if (typeof setPageHTML === 'function') {
-        // Update source document
-        setPageHTML(selectedElement.selector, newHtml);
-        
-        // Update preview
-        if (typeof updatePreviewSectorial === 'function') {
-          updatePreviewSectorial(selectedElement.selector);
-        }
-        
-        // Update DOM element for immediate feedback
-        if (selectedElement.element) {
-          selectedElement.element.innerHTML = newHtml;
-        }
-        
-        console.log(`LiveCanvas: Updated HTML for ${selectedElement.selector}`);
-      } else {
-        // Fallback to real-time update handler
-        handleRealTimeChange('html', newHtml);
-      }
-    }
-  }, [selectedElement, handleRealTimeChange]);
+    // Always use the real-time update handler for consistent LiveCanvas integration
+    // This ensures proper use of setPageHTML + updatePreviewSectorial pattern
+    handleRealTimeChange('html', newHtml);
+  }, [handleRealTimeChange]);
 
 
   const handleReset = useCallback(() => {
@@ -220,6 +210,13 @@ export function ElementToolsPanel({
 
   // Show waiting state when no element is selected
   const isWaitingForSelection = !selectedElement;
+  
+  // Check if lc-main is selected (only show HTML tab)
+  const isLcMainSelected = selectedElement && (
+    selectedElement.id === 'lc-main' || 
+    selectedElement.selector === 'main#lc-main' || 
+    selectedElement.selector === '#lc-main'
+  );
   
 
   return (
@@ -461,10 +458,39 @@ export function ElementToolsPanel({
                   </h3>
                   <p id="lc-et-waiting-description" className="text-sm text-lc-grey-light mb-6 leading-relaxed">
                     {toggleMode 
-                      ? "Click any element on the page to start editing its styles and content."
-                      : "Hold CMD/Ctrl and click any element to start editing its styles and content."
+                      ? "Click any element in the main content area to start editing its styles and content."
+                      : "Hold CMD/Ctrl and click any element in the main content area to start editing its styles and content."
                     }
                   </p>
+                  
+                  {/* Quick action buttons */}
+                  <div id="lc-et-quick-actions" className="mb-6">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Edit HTML button */}
+                      {onSelectLcMain && (
+                        <Button
+                          onClick={onSelectLcMain}
+                          variant="outline"
+                          className="flex items-center justify-center gap-2 bg-lc-accent/50 border-lc-accent hover:bg-lc-accent text-lc-grey-light hover:text-white transition-all duration-200"
+                        >
+                          <FileCode className="h-4 w-4" />
+                          <span className="text-xs font-medium">Edit HTML</span>
+                        </Button>
+                      )}
+                      
+                      {/* Add new section button */}
+                      <Button
+                        id="add-new-section"
+                        variant="outline"
+                        className="add-new-section flex items-center justify-center gap-2 bg-lc-accent/50 border-lc-accent hover:bg-lc-accent text-lc-grey-light hover:text-white transition-all duration-200"
+                        data-id="add-new-section"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span className="text-xs font-medium">Add Section</span>
+                      </Button>
+                    </div>
+                  </div>
+                  
                   <div id="lc-et-waiting-status" className="flex items-center justify-center gap-2 text-xs text-lc-grey-light">
                     <motion.div
                       id="lc-et-waiting-pulse"
@@ -535,30 +561,43 @@ export function ElementToolsPanel({
                   onValueChange={(value) => setActiveTab(value as 'classes' | 'html')}
                   className="h-full flex flex-col min-h-0"
                 >
-                  {/* Enhanced Tab Navigation */}
-                  <div id="lc-et-tabs-nav-container" className="px-4 pt-4 pb-2">
-                    <TabsList id="lc-et-tabs-list" className="!grid !w-full grid-cols-2 h-10 bg-lc-accent rounded-lg p-0.5 !items-stretch">
-                      <TabsTrigger 
-                        id="lc-et-tab-classes"
-                        value="classes" 
-                        className="text-xs font-medium text-lc-grey-light data-[state=active]:bg-lc-bg-dark data-[state=active]:text-white data-[state=active]:shadow-sm rounded-md flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-0"
-                      >
-                        <Palette className="h-3.5 w-3.5 flex-shrink-0" />
-                        <span className="truncate">Classes</span>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        id="lc-et-tab-html"
-                        value="html" 
-                        className="text-xs font-medium text-lc-grey-light data-[state=active]:bg-lc-bg-dark data-[state=active]:text-white data-[state=active]:shadow-sm rounded-md flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-0"
-                      >
-                        <FileCode className="h-3.5 w-3.5 flex-shrink-0" />
-                        <span className="truncate">HTML</span>
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
+                  {/* Enhanced Tab Navigation - Hide tabs when lc-main is selected */}
+                  {!isLcMainSelected && (
+                    <div id="lc-et-tabs-nav-container" className="px-4 pt-4 pb-2">
+                      <TabsList id="lc-et-tabs-list" className="!grid !w-full grid-cols-2 h-10 bg-lc-accent rounded-lg p-0.5 !items-stretch">
+                        <TabsTrigger 
+                          id="lc-et-tab-classes"
+                          value="classes" 
+                          className="text-xs font-medium text-lc-grey-light data-[state=active]:bg-lc-bg-dark data-[state=active]:text-white data-[state=active]:shadow-sm rounded-md flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-0"
+                        >
+                          <Palette className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="truncate">Classes</span>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          id="lc-et-tab-html"
+                          value="html" 
+                          className="text-xs font-medium text-lc-grey-light data-[state=active]:bg-lc-bg-dark data-[state=active]:text-white data-[state=active]:shadow-sm rounded-md flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-0"
+                        >
+                          <FileCode className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="truncate">HTML</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                  )}
 
-                  {/* Clean CSS Classes Tab with Monaco */}
-                  <TabsContent id="lc-et-content-classes" value="classes" className="flex-1 m-0 min-h-0">
+                  {/* Single tab header for lc-main */}
+                  {isLcMainSelected && (
+                    <div id="lc-et-tabs-nav-container" className="px-4 pt-4 pb-2">
+                      <div className="flex items-center gap-2 text-lc-grey-light">
+                        <FileCode className="h-4 w-4 text-lc-primary" />
+                        <span className="text-sm font-medium">Page Content (HTML)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clean CSS Classes Tab with Monaco - Hide when lc-main is selected */}
+                  {!isLcMainSelected && (
+                    <TabsContent id="lc-et-content-classes" value="classes" className="flex-1 m-0 min-h-0">
                     <motion.div
                       id="lc-et-classes-container"
                       variants={tabContentVariants}
@@ -603,10 +642,81 @@ export function ElementToolsPanel({
                         )}
                       </div>
                     </motion.div>
-                  </TabsContent>
+                    </TabsContent>
+                  )}
 
-                  {/* Clean HTML Content Tab with Monaco */}
-                  <TabsContent id="lc-et-content-html" value="html" className="flex-1 m-0 min-h-0">
+                  {/* Clean HTML Content Tab with Monaco - Always show when lc-main is selected */}
+                  {isLcMainSelected ? (
+                    <div className="flex-1 m-0 min-h-0">
+                      <motion.div
+                        id="lc-et-html-container"
+                        variants={tabContentVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        transition={{ duration: 0.2 }}
+                        className="h-full flex flex-col p-4 min-h-0"
+                      >
+                        <div id="lc-et-html-header" className="mb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <Label id="lc-et-html-label" className="text-sm font-medium text-lc-grey-light">
+                              Page Content
+                            </Label>
+                            <Button
+                              id="lc-et-btn-html-maximize"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setIsHtmlMaximized(!isHtmlMaximized);
+                                if (!isHtmlMaximized) {
+                                  setActiveTab('html');
+                                }
+                              }}
+                              className="h-6 w-6 p-0 hover:bg-lc-accent text-lc-grey-light hover:text-white relative group"
+                              title={isHtmlMaximized ? 'Exit focused mode' : 'Enter focused mode'}
+                            >
+                              {isHtmlMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-lc-bg-dark text-white text-xs rounded border border-lc-accent opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-[9999999]">
+                                {isHtmlMaximized ? 'Exit focused mode' : 'Enter focused mode'}
+                              </div>
+                            </Button>
+                          </div>
+                          {!isHtmlMaximized && (
+                            <p id="lc-et-html-description" className="text-xs text-lc-grey mb-3">
+                              Edit the entire page content
+                            </p>
+                          )}
+                        </div>
+                        <div id="lc-et-html-editor-container" className="flex-1 min-h-0 border border-lc-accent rounded-md overflow-hidden">
+                          {useMonaco ? (
+                            <div className="w-full h-full">
+                              <MonacoEditor
+                                id="lc-et-monaco-editor"
+                                value={htmlValue}
+                                onChange={handleHtmlChange}
+                                language="html"
+                                height="100%"
+                                minimap={false}
+                                lineNumbers="on"
+                                className="w-full h-full"
+                              />
+                            </div>
+                          ) : (
+                            <ScrollArea id="lc-et-html-scroll" className="h-full content-area">
+                              <Textarea
+                                id="lc-et-html-textarea"
+                                value={htmlValue}
+                                onChange={(e) => handleHtmlChange(e.target.value)}
+                                placeholder="Enter HTML content..."
+                                className="h-full text-sm font-mono resize-none bg-transparent border-none text-white placeholder:text-lc-grey focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </ScrollArea>
+                          )}
+                        </div>
+                      </motion.div>
+                    </div>
+                  ) : (
+                    <TabsContent id="lc-et-content-html" value="html" className="flex-1 m-0 min-h-0">
                     <motion.div
                       id="lc-et-html-container"
                       variants={tabContentVariants}
@@ -673,7 +783,8 @@ export function ElementToolsPanel({
                         )}
                       </div>
                     </motion.div>
-                  </TabsContent>
+                    </TabsContent>
+                  )}
 
                 </Tabs>
               </div>
@@ -715,7 +826,7 @@ export function ElementToolsPanel({
             
             {!isWaitingForSelection && (
               <Badge id="lc-et-active-tab-badge" variant="outline" className="text-xs bg-lc-primary/10 text-lc-primary border-lc-primary/30">
-                {activeTab === 'classes' ? 'CSS' : 'HTML'}
+                {isLcMainSelected ? 'Page Content' : (activeTab === 'classes' ? 'CSS' : 'HTML')}
               </Badge>
             )}
           </div>

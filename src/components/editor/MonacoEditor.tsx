@@ -118,12 +118,19 @@ export function MonacoEditor({
     // Force vs-dark theme and ensure it stays dark
     monaco.editor.setTheme('vs-dark');
     
-    // Add listener to prevent theme changes
-    const disposable = monaco.editor.onDidChangeTheme(() => {
-      if (monaco.editor.getTheme() !== 'vs-dark') {
-        monaco.editor.setTheme('vs-dark');
+    // Add listener to prevent theme changes (with safety check)
+    let disposable: any = null;
+    try {
+      if (monaco.editor.onDidChangeTheme && typeof monaco.editor.onDidChangeTheme === 'function') {
+        disposable = monaco.editor.onDidChangeTheme(() => {
+          if (monaco.editor.getTheme && monaco.editor.getTheme() !== 'vs-dark') {
+            monaco.editor.setTheme('vs-dark');
+          }
+        });
       }
-    });
+    } catch (error) {
+      console.warn('Monaco onDidChangeTheme not available:', error);
+    }
     
     // Add ultra-aggressive custom CSS to completely eliminate focus borders
     const addCustomFocusBorderCSS = () => {

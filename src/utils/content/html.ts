@@ -16,12 +16,12 @@ function getIframeDocument(): Document | null {
 }
 
 /**
- * Get the working document - prioritizes lcMainStore.doc, falls back to iframe
+ * Get the working document - EXACT LiveCanvas pattern
  * @returns Document to work with
  */
 function getWorkingDocument(): Document | null {
-    // Try to get doc from lcMainStore (LiveCanvas pattern)
-    if (typeof window !== 'undefined' && (window as any).lcMainStore && (window as any).lcMainStore.doc) {
+    // EXACT LiveCanvas pattern - prioritize lcMainStore.doc
+    if (typeof window !== 'undefined' && (window as any).lcMainStore?.doc) {
         return (window as any).lcMainStore.doc;
     }
     // Fallback to iframe document
@@ -92,9 +92,18 @@ function setPageHTML(selector: string, newValue: string): void {
         return;
     }
     
-    const element = doc.querySelector(selector);
+    let element = doc.querySelector(selector);
+    
+    // EXACT LiveCanvas pattern - fallback selector for lc-main
+    if (!element && (selector === 'main#lc-main' || selector === '#lc-main')) {
+        element = doc.querySelector('#lc-main') || doc.querySelector('main#lc-main');
+    }
+    
     if (element) {
         element.innerHTML = newValue;
+        console.log(`setPageHTML: Updated ${selector} successfully`);
+    } else {
+        console.warn(`setPageHTML: Element not found: ${selector}`);
     }
 }
 

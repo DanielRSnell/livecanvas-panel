@@ -1,24 +1,29 @@
-import * as prettier from 'prettier';
-
 /**
  * Format HTML using Prettier - similar to LiveCanvas's formatting
+ * Falls back to basic formatting if Prettier is not available
  */
 export async function formatHtml(html: string): Promise<string> {
   try {
-    const formatted = await prettier.format(html, {
-      parser: 'html',
-      printWidth: 80,
-      tabWidth: 2,
-      useTabs: false,
-      htmlWhitespaceSensitivity: 'css',
-      bracketSameLine: false,
-      singleAttributePerLine: false,
-    });
-    return formatted;
+    // Try to use Prettier if available (development mode)
+    if (typeof window !== 'undefined' && (window as any).prettier) {
+      const prettier = (window as any).prettier;
+      const formatted = await prettier.format(html, {
+        parser: 'html',
+        printWidth: 80,
+        tabWidth: 2,
+        useTabs: false,
+        htmlWhitespaceSensitivity: 'css',
+        bracketSameLine: false,
+        singleAttributePerLine: false,
+      });
+      return formatted;
+    }
   } catch (error) {
     console.warn('HTML formatting failed:', error);
-    return html; // Return original if formatting fails
   }
+  
+  // Fallback to basic formatting
+  return basicFormatHtml(html);
 }
 
 /**
@@ -26,7 +31,9 @@ export async function formatHtml(html: string): Promise<string> {
  */
 export function isFormatterAvailable(): boolean {
   try {
-    return typeof prettier.format === 'function';
+    return typeof window !== 'undefined' && 
+           (window as any).prettier && 
+           typeof (window as any).prettier.format === 'function';
   } catch {
     return false;
   }

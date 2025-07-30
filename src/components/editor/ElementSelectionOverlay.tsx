@@ -19,6 +19,7 @@ interface ElementSelectionOverlayProps {
   onElementSelect?: (element: HTMLElement, info: ElementInfo) => void;
   toggleMode?: boolean;
   className?: string;
+  showHoverStates?: boolean;
 }
 
 export function ElementSelectionOverlay({
@@ -27,7 +28,8 @@ export function ElementSelectionOverlay({
   onElementHover,
   onElementSelect,
   toggleMode = false,
-  className
+  className,
+  showHoverStates = true
 }: ElementSelectionOverlayProps) {
   const [hoveredInfo, setHoveredInfo] = useState<ElementInfo | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -52,7 +54,7 @@ export function ElementSelectionOverlay({
 
   // Handle mouse move for tooltip positioning
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isActive) return;
+    if (!isActive || !showHoverStates) return;
     
     setMousePosition({ x: e.clientX, y: e.clientY });
     
@@ -66,11 +68,29 @@ export function ElementSelectionOverlay({
       return;
     }
 
+    // Only show hover info for elements within #lc-main
+    const lcMainElement = targetDocument.querySelector('#lc-main');
+    if (!lcMainElement) {
+      setHoveredInfo(null);
+      setShowTooltip(false);
+      onElementHover?.(null, null);
+      return;
+    }
+
+    // Check if target is within #lc-main
+    const isWithinLcMain = lcMainElement.contains(target) || target === lcMainElement;
+    if (!isWithinLcMain) {
+      setHoveredInfo(null);
+      setShowTooltip(false);
+      onElementHover?.(null, null);
+      return;
+    }
+
     const info = getElementInfo(target);
     setHoveredInfo(info);
     setShowTooltip(true);
     onElementHover?.(target, info);
-  }, [isActive, getElementInfo, onElementHover]);
+  }, [isActive, showHoverStates, getElementInfo, onElementHover]);
 
   // Handle click
   const handleClick = useCallback((e: MouseEvent) => {
@@ -86,6 +106,20 @@ export function ElementSelectionOverlay({
     
     // Skip our own components
     if (target.closest('.lc-element-tools-container, .lc-element-selection-overlay')) {
+      return;
+    }
+
+    // Only allow selection of elements within #lc-main
+    const lcMainElement = targetDocument.querySelector('#lc-main');
+    if (!lcMainElement) {
+      console.warn('ElementSelectionOverlay: #lc-main not found, cannot restrict selection');
+      return;
+    }
+
+    // Check if target is within #lc-main (but not #lc-main itself, unless it's the direct target)
+    const isWithinLcMain = lcMainElement.contains(target) || target === lcMainElement;
+    if (!isWithinLcMain) {
+      console.log('ElementSelectionOverlay: Element outside #lc-main, ignoring selection');
       return;
     }
 
@@ -113,9 +147,11 @@ export function ElementSelectionOverlay({
       doc.addEventListener('click', handleClick, true);
       doc.addEventListener('mouseleave', handleMouseLeave);
       
-      // Set cursor style
+      // Set cursor style only when showing hover states
       const originalCursor = doc.body.style.cursor;
-      doc.body.style.cursor = 'crosshair';
+      if (showHoverStates) {
+        doc.body.style.cursor = 'crosshair';
+      }
       
       return () => {
         // Remove event listeners
@@ -123,15 +159,17 @@ export function ElementSelectionOverlay({
         doc.removeEventListener('click', handleClick, true);
         doc.removeEventListener('mouseleave', handleMouseLeave);
         
-        // Restore cursor
-        doc.body.style.cursor = originalCursor;
+        // Restore cursor only if we changed it
+        if (showHoverStates) {
+          doc.body.style.cursor = originalCursor;
+        }
         
         // Clear state
         setHoveredInfo(null);
         setShowTooltip(false);
       };
     }
-  }, [isActive, targetDocument, handleMouseMove, handleClick, handleMouseLeave]);
+  }, [isActive, showHoverStates, targetDocument, handleMouseMove, handleClick, handleMouseLeave]);
 
   if (!isActive) {
     return null;
@@ -141,7 +179,7 @@ export function ElementSelectionOverlay({
     <>
       {/* Element Highlight Overlay */}
       <AnimatePresence>
-        {hoveredInfo && (
+        {hoveredInfo && showHoverStates && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -178,7 +216,7 @@ export function ElementSelectionOverlay({
 
       {/* Floating Tooltip */}
       <AnimatePresence>
-        {showTooltip && hoveredInfo && (
+        {showTooltip && hoveredInfo && showHoverStates && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

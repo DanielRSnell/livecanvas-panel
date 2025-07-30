@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ElementToolsPanel } from './ElementToolsPanel';
 import { ElementSelectionOverlay } from '@/components/editor/ElementSelectionOverlay';
 import { useLiveCanvasElementSelector } from '@/hooks/useLiveCanvasElementSelector';
-import { Layers3, MousePointer2 } from 'lucide-react';
+import { Layers3, MousePointer2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SelectedElement } from '@/types';
 
@@ -96,7 +96,9 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
     hoveredElement,
     toggleMode: currentToggleMode,
     toggleSelector,
-    clearSelection 
+    clearSelection,
+    createSelectedElement,
+    setSelectedElement
   } = useLiveCanvasElementSelector({
     enabledByDefault: false,
     toggleMode,
@@ -119,10 +121,31 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
       // Get iframe document reference for LiveCanvas functions
       const doc = iframeDoc || (document.querySelector('#previewiframe') as HTMLIFrameElement)?.contentDocument;
       
-      // Get the CSS selector using LC's method if available, fallback to our method
-      const lcSelector = (window as any).CSSelector ? 
-        (window as any).CSSelector(selectedElement.element) : 
-        selectedElement.selector;
+      // Get the CSS selector using LiveCanvas approach
+      // IMPORTANT: For lc-main, ALWAYS use canonical selector
+      const isLcMainElement = selectedElement && (
+        selectedElement.id === 'lc-main' || 
+        selectedElement.selector === 'main#lc-main' || 
+        selectedElement.selector === '#lc-main'
+      );
+      
+      let lcSelector: string;
+      if (isLcMainElement) {
+        // For lc-main, ALWAYS use canonical selector (never rely on CSSelector)
+        lcSelector = 'main#lc-main';
+        console.log('LC Element Tools: Using canonical selector for lc-main:', lcSelector);
+      } else {
+        // For regular elements, use CSSelector if available
+        lcSelector = (window as any).CSSelector ? 
+          (window as any).CSSelector(selectedElement.element) : 
+          selectedElement.selector;
+      }
+      
+      // Safety check - ensure we have a valid selector
+      if (!lcSelector || lcSelector.trim() === '') {
+        console.warn('LC Element Tools: Empty selector detected, using fallback:', selectedElement.selector);
+        lcSelector = selectedElement.selector || '#lc-main';
+      }
       
       if (type === 'classes') {
         // Use LC's setAttributeValue for real-time class updates
@@ -140,18 +163,84 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
           }
         }
       } else if (type === 'html') {
-        // Use LC's setPageHTML for real-time HTML updates
-        if ((window as any).setPageHTML) {
-          (window as any).setPageHTML(lcSelector, value as string);
+        // Get LiveCanvas functions with proper fallback to LCUtils
+        const setPageHTML = (window as any).setPageHTML || (window as any).LCUtils?.content?.setPageHTML;
+        const updatePreviewSectorial = (window as any).updatePreviewSectorial || (window as any).LCUtils?.preview?.updatePreviewSectorial;
+        
+        if (isLcMainElement) {
+          // SPECIAL HANDLING FOR LC-MAIN - EXACT LiveCanvas pattern
+          console.log('LC Element Tools: Special lc-main HTML update');
+          
+          // Step 1: Use the already determined lcSelector (which is canonical for lc-main)
+          console.log('LC Element Tools: Using lcSelector for lc-main updates:', lcSelector);
+          
+          // Step 2: Update source document via LiveCanvas function
+          if (typeof setPageHTML === 'function') {
+            console.log('LC Element Tools: Updating lc-main source via setPageHTML');
+            setPageHTML(lcSelector, value as string);
+          } else {
+            console.warn('LC Element Tools: setPageHTML not available for lc-main');
+            // Fallback: update working document directly
+            const getWorkingDocument = () => {
+              if (typeof window !== 'undefined' && (window as any).lcMainStore?.doc) {
+                return (window as any).lcMainStore.doc;
+              }
+              return doc; // Use provided iframe doc
+            };
+            
+            const workingDoc = getWorkingDocument();
+            if (workingDoc) {
+              const sourceElement = workingDoc.querySelector(lcSelector) || workingDoc.querySelector('#lc-main');
+              if (sourceElement) {
+                sourceElement.innerHTML = value as string;
+                console.log('LC Element Tools: Updated lc-main source via working document');
+              }
+            }
+          }
+          
+          // Step 3: Update preview via updatePreviewSectorial (ALWAYS use canonical selector)
+          if (typeof updatePreviewSectorial === 'function') {
+            console.log('LC Element Tools: Updating lc-main preview via updatePreviewSectorial');
+            updatePreviewSectorial(lcSelector); // Use determined canonical selector
+          } else {
+            console.log('LC Element Tools: updatePreviewSectorial not available, direct iframe update');
+            // Direct iframe update fallback
+            if (doc) {
+              const previewElement = doc.querySelector(lcSelector) || doc.querySelector('#lc-main');
+              if (previewElement) {
+                previewElement.innerHTML = value as string;
+                console.log('LC Element Tools: Updated lc-main preview via direct DOM');
+              } else {
+                console.warn('LC Element Tools: Could not find lc-main in preview iframe');
+              }
+            }
+          }
+          
         } else {
-          // Direct manipulation on iframe element
-          if (doc) {
-            const element = doc.querySelector(lcSelector) as HTMLElement;
-            if (element) {
-              element.innerHTML = value as string;
+          // REGULAR ELEMENT HANDLING
+          if (typeof setPageHTML === 'function') {
+            console.log('LC Element Tools: Using setPageHTML for regular element:', lcSelector);
+            setPageHTML(lcSelector, value as string);
+            
+            // Update preview for regular elements
+            if (typeof updatePreviewSectorial === 'function') {
+              updatePreviewSectorial(lcSelector);
             }
           } else {
-            selectedElement.element.innerHTML = value as string;
+            console.log('LC Element Tools: setPageHTML not available, using direct DOM manipulation');
+            // Complete fallback: Direct manipulation on iframe element
+            if (doc) {
+              const element = doc.querySelector(lcSelector) as HTMLElement;
+              if (element) {
+                element.innerHTML = value as string;
+                console.log('LC Element Tools: Updated via direct DOM manipulation:', lcSelector);
+              } else {
+                console.warn('LC Element Tools: Element not found with selector:', lcSelector);
+              }
+            } else if (selectedElement.element) {
+              selectedElement.element.innerHTML = value as string;
+              console.log('LC Element Tools: Updated via selected element:', lcSelector);
+            }
           }
         }
       } else if (type === 'attributes') {
@@ -196,10 +285,47 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
     }, 3000);
   }, [selectedElement, iframeDoc]);
 
+  // Function to adjust the preview iframe layout like LiveCanvas Tweaks
+  const adjustPreviewLayout = useCallback((isActive: boolean) => {
+    const previewIframe = document.getElementById("previewiframe-wrap");
+    const previewWindow = document.getElementById("previewiframe");
+    
+    if (previewIframe && previewWindow) {
+      if (isActive) {
+        // Push preview to the right (60% width) like LiveCanvas Tweaks
+        previewIframe.style.marginLeft = "auto";
+        previewIframe.style.marginRight = "0";
+        previewIframe.style.width = "60%";
+        
+        console.log('LC Element Tools: Preview layout adjusted for side panel');
+      } else {
+        // Reset preview layout - use removeProperty for complete reset
+        previewIframe.style.removeProperty('margin-left');
+        previewIframe.style.removeProperty('margin-right');
+        previewIframe.style.removeProperty('width');
+        
+        console.log('LC Element Tools: Preview layout restored');
+      }
+    }
+  }, []);
+
   const handleClose = useCallback(() => {
+    console.log('LC Element Tools: Closing panel and resetting everything');
+    
+    // Step 1: Hide the tools panel
     setIsToolsVisible(false);
+    
+    // Step 2: Clear the selection
     clearSelection();
-  }, [clearSelection]);
+    
+    // Step 3: Deactivate the selector (this will trigger preview layout reset)
+    toggleSelector(false);
+    
+    // Step 4: Explicitly reset the preview layout
+    adjustPreviewLayout(false);
+    
+    console.log('LC Element Tools: Panel closed, selector deactivated, layout reset');
+  }, [clearSelection, toggleSelector, adjustPreviewLayout]);
 
   // Add keyboard support for clearing selection
   useEffect(() => {
@@ -216,12 +342,167 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
     };
   }, [selectedElement, clearSelection]);
 
+  // Observer for #sidepanel - close our panel when LiveCanvas sidepanel is visible
+  useEffect(() => {
+    const sidepanel = document.getElementById('sidepanel');
+    if (!sidepanel) return;
+
+    const checkSidePanelVisibility = () => {
+      if (!sidepanel) return;
+      
+      // Check if display is NOT 'none' (meaning it's visible)
+      const computedStyle = getComputedStyle(sidepanel);
+      const inlineStyle = sidepanel.style.display;
+      
+      // Panel is visible if:
+      // 1. Inline style is not 'none' AND computed style is not 'none'
+      // 2. OR if there's no inline style and computed style is not 'none'
+      const isVisible = (inlineStyle !== 'none' && computedStyle.display !== 'none') ||
+                       (!inlineStyle && computedStyle.display !== 'none');
+      
+      // If sidepanel becomes visible and our panel is open, close it
+      if (isVisible && isToolsVisible) {
+        console.log('LC Element Tools: LiveCanvas sidepanel is visible, closing our panel');
+        handleClose();
+      }
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && 
+            (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+          // Check visibility after any style or class change
+          checkSidePanelVisibility();
+        }
+      });
+    });
+
+    // Watch for style and class attribute changes
+    observer.observe(sidepanel, {
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+
+    // Also check initial state
+    checkSidePanelVisibility();
+
+    return () => observer.disconnect();
+  }, [isToolsVisible, handleClose]);
+
+  // Handle selecting the lc-main element - EXACT LiveCanvas approach
+  const handleSelectLcMain = useCallback(() => {
+    console.log('LC Element Tools: handleSelectLcMain called');
+    
+    // Step 1: Get working document (EXACT LiveCanvas pattern)
+    const getWorkingDocument = () => {
+      if (typeof window !== 'undefined' && (window as any).lcMainStore?.doc) {
+        return (window as any).lcMainStore.doc;
+      }
+      const iframe = document.querySelector('#previewiframe') as HTMLIFrameElement;
+      return iframe?.contentDocument || null;
+    };
+    
+    // Step 2: Get iframe document for visual selection
+    const iframe = document.querySelector('#previewiframe') as HTMLIFrameElement;
+    const currentIframeDoc = iframe?.contentDocument;
+    
+    console.log('LC Element Tools: iframe element found:', !!iframe);
+    console.log('LC Element Tools: iframeDoc available:', !!currentIframeDoc);
+    
+    if (!currentIframeDoc) {
+      console.warn('LC Element Tools: iframe document not available');
+      return;
+    }
+    
+    // Step 3: Find lc-main element using EXACT LiveCanvas selector pattern
+    const lcMainElement = currentIframeDoc.querySelector('main#lc-main') as HTMLElement;
+    if (!lcMainElement) {
+      console.warn('LC Element Tools: main#lc-main element not found in iframe');
+      // Try fallback selector (EXACT LiveCanvas pattern)
+      const fallbackElement = currentIframeDoc.querySelector('#lc-main') as HTMLElement;
+      if (!fallbackElement) {
+        console.warn('LC Element Tools: #lc-main element also not found');
+        return;
+      }
+      console.log('LC Element Tools: Using fallback #lc-main element');
+    }
+
+    const targetElement = lcMainElement || currentIframeDoc.querySelector('#lc-main') as HTMLElement;
+    console.log('LC Element Tools: Target element found:', targetElement.tagName, targetElement.id);
+
+    // Step 4: Get HTML using EXACT LiveCanvas pattern - always use canonical selector
+    const canonicalSelector = "main#lc-main"; // Hard-coded like LiveCanvas
+    let html = '';
+    
+    // Try LiveCanvas getPageHTML first
+    const getPageHTML = (window as any).getPageHTML || (window as any).LCUtils?.content?.getPageHTML;
+    if (getPageHTML && typeof getPageHTML === 'function') {
+      html = getPageHTML(canonicalSelector);
+      console.log('LC Element Tools: Got HTML using getPageHTML, length:', html.length);
+    } else {
+      // Fallback: get from working document, not iframe
+      const workingDoc = getWorkingDocument();
+      if (workingDoc) {
+        const sourceElement = workingDoc.querySelector(canonicalSelector) || workingDoc.querySelector('#lc-main');
+        if (sourceElement) {
+          html = sourceElement.innerHTML;
+          console.log('LC Element Tools: Got HTML from working document, length:', html.length);
+        }
+      }
+      if (!html) {
+        // Final fallback to iframe element
+        html = targetElement.innerHTML;
+        console.log('LC Element Tools: Got HTML using iframe innerHTML fallback, length:', html.length);
+      }
+    }
+
+    // Step 5: Create selected element object using EXACT LiveCanvas pattern
+    const selectedLcMain = {
+      element: targetElement,
+      selector: canonicalSelector, // Always use canonical selector
+      classes: Array.from(targetElement.classList).filter(cls => 
+        cls && !cls.startsWith('lc-')
+      ),
+      tagName: targetElement.tagName.toLowerCase(),
+      id: targetElement.id || 'lc-main',
+      innerHTML: html,
+      outerHTML: targetElement.outerHTML,
+      attributes: Array.from(targetElement.attributes).reduce((acc, attr) => {
+        if (attr.name !== 'class' && attr.name !== 'style') {
+          acc[attr.name] = attr.value;
+        }
+        return acc;
+      }, {} as Record<string, string>)
+    };
+
+    // Step 6: Apply selection using LiveCanvas pattern
+    setIsToolsVisible(true);
+    
+    if (selectedLcMain) {
+      console.log('LC Element Tools: Selected main#lc-main element with canonical selector:', selectedLcMain.selector);
+      setSelectedElement(selectedLcMain);
+    }
+  }, [setSelectedElement]);
+
   const handleToggleSelector = useCallback(() => {
     const newActiveState = !isActive;
     toggleSelector(newActiveState);
     
     if (newActiveState) {
-      // When activating, show the panel and adjust layout
+      // When activating, first close LiveCanvas sidepanel using their method
+      const closeSidepanelBtn = document.querySelector('.close-sidepanel');
+      if (closeSidepanelBtn && typeof (closeSidepanelBtn as HTMLElement).click === 'function') {
+        (closeSidepanelBtn as HTMLElement).click();
+        console.log('LC Element Tools: Closed LiveCanvas sidepanel using .close-sidepanel');
+      } else {
+        // Fallback to direct style manipulation
+        const sidepanel = document.getElementById('sidepanel');
+        if (sidepanel) {
+          sidepanel.style.display = 'none';
+          console.log('LC Element Tools: Hidden LiveCanvas sidepanel via style (fallback)');
+        }
+      }
+      
       setIsToolsVisible(true);
       adjustPreviewLayout(true);
     } else {
@@ -230,31 +511,7 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
       setIsToolsVisible(false);
       adjustPreviewLayout(false);
     }
-  }, [isActive, toggleSelector, clearSelection]);
-
-  // Function to adjust the preview iframe layout like LiveCanvas Tweaks
-  const adjustPreviewLayout = useCallback((isActive: boolean) => {
-    const previewIframe = document.getElementById("previewiframe-wrap");
-    const previewWindow = document.getElementById("previewiframe");
-    
-    if (previewIframe && previewWindow) {
-      if (isActive) {
-        // Push preview to the right (60% width) like LiveCanvas Tweaks
-        previewIframe.style.marginLeft = "auto";
-        previewIframe.style.marginRight = "0";
-        previewIframe.style.width = "60%";
-        
-        console.log('LC Element Tools: Preview layout adjusted for side panel');
-      } else {
-        // Reset preview layout
-        previewIframe.style.marginLeft = "";
-        previewIframe.style.marginRight = "";
-        previewIframe.style.width = "";
-        
-        console.log('LC Element Tools: Preview layout restored');
-      }
-    }
-  }, []);
+  }, [isActive, toggleSelector, clearSelection, adjustPreviewLayout]);
   
 
   return (
@@ -360,12 +617,13 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
         )}
       </AnimatePresence>
 
-      {/* Element Selection Overlay - Only active when iframe document is available */}
+      {/* Element Selection Overlay - Always active for command+click, full active when selector is on */}
       {iframeDoc && (
         <ElementSelectionOverlay
-          isActive={isActive}
+          isActive={true}
           targetDocument={iframeDoc}
-          toggleMode={toggleMode}
+          toggleMode={isActive ? toggleMode : false}
+          showHoverStates={isActive}
           onElementSelect={(element, info) => {
           const selected = {
             element,
@@ -382,8 +640,20 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
               return acc;
             }, {} as Record<string, string>)
           };
-          // The element selection is handled by the LiveCanvas hook
+          console.log('LC Element Tools: Element selected via command+click:', selected.selector);
+          
+          // First close LiveCanvas sidepanel if open
+          const closeSidepanelBtn = document.querySelector('.close-sidepanel');
+          if (closeSidepanelBtn && typeof (closeSidepanelBtn as HTMLElement).click === 'function') {
+            (closeSidepanelBtn as HTMLElement).click();
+            console.log('LC Element Tools: Closed LiveCanvas sidepanel for command+click selection');
+          }
+          
+          // Open the panel and set the selected element
           setIsToolsVisible(true);
+          adjustPreviewLayout(true);
+          // Use the LiveCanvas hook to properly set the element
+          setSelectedElement(selected);
           if (!toggleMode) {
             toggleSelector(false);
           }
@@ -428,7 +698,7 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
                   }
                 </div>
                 <div className="text-xs text-lc-grey-light mt-1">
-                  Select elements to edit CSS classes and HTML content
+                  Select elements within the main content area to edit CSS classes and HTML content
                 </div>
               </div>
             </div>
@@ -471,6 +741,43 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
         )}
       </AnimatePresence>
 
+      {/* Floating Add Section Button - Bottom Right */}
+      <AnimatePresence>
+        {(!isToolsVisible || selectedElement) && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, x: 20, y: 20 }}
+            animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, x: 20, y: 20 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 25,
+              duration: 0.4
+            }}
+            className="fixed bottom-6 right-6 z-[999998]"
+          >
+            <Button
+              className="add-section add-new-section h-9 px-4 shadow-xl transition-all duration-300 bg-lc-bg-dark border-lc-accent hover:bg-lc-accent text-lc-grey-light hover:text-white border flex items-center gap-2"
+            >
+              <motion.div
+                animate={{ 
+                  rotate: [0, 90, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ 
+                  duration: 3, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </motion.div>
+              <span className="text-sm font-medium">Section</span>
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* High-Fidelity Element Tools Panel */}
       <AnimatePresence>
         {isToolsVisible && (
@@ -492,6 +799,7 @@ export function ElementToolsApp({ config, className }: ElementToolsAppProps) {
               selectedElement={selectedElement}
               onClose={handleClose}
               onClearSelection={clearSelection}
+              onSelectLcMain={handleSelectLcMain}
               onRealTimeUpdate={handleRealTimeUpdate}
               toggleMode={toggleMode}
               onToggleModeChange={handleToggleModeChange}

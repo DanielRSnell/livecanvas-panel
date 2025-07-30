@@ -1,0 +1,132 @@
+/* Add New Section Button - EXACT LiveCanvas Element Tools Style Match */
+
+/* Define the same CSS custom properties our app uses */
+#primary-tools {
+  /* LiveCanvas color variables */
+  --lc-bg: rgb(10 10 10);
+  --lc-bg-dark: rgb(23 23 23);
+  --lc-accent: rgb(38 38 38);
+  --lc-primary: rgb(62 207 142);
+  --lc-grey-light: rgb(115 115 115);
+  --accent: 38 38 38;
+  --border: 64 64 64;
+  --ring: 62 207 142;
+}
+
+#primary-tools .add-new-section {
+  /* EXACT match to our Button component styles */
+  /* Base button framework */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  
+  /* Focus and interaction */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  
+  /* Disabled state base */
+  pointer-events: auto;
+  opacity: 1;
+  
+  /* Size - matches our h-9 buttons */
+  height: 2.25rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  
+  /* Outline variant (matches our buttons exactly) */
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  
+  /* Shadow */
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  
+  /* Our custom classes */
+  background-color: rgba(38, 38, 38, 0.5); /* bg-lc-accent/50 */
+  border-color: rgb(38 38 38); /* border-lc-accent */
+  color: rgb(115 115 115); /* text-lc-grey-light */
+  
+  /* Remove default link styling */
+  text-decoration: none;
+  
+  /* Handle the line break - make it vertical like our buttons */
+  flex-direction: column;
+  text-align: center;
+  line-height: 1.2;
+  font-size: 0.75rem; /* text-xs to match our buttons */
+}
+
+#primary-tools .add-new-section:hover {
+  /* EXACT hover state match */
+  background-color: rgb(38 38 38); /* hover:bg-lc-accent */
+  color: rgb(255 255 255); /* hover:text-white */
+  text-decoration: none;
+}
+
+#primary-tools .add-new-section:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Icon styling - match our Lucide icons */
+#primary-tools .add-new-section i.fa-plus-circle {
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
+  color: inherit;
+  margin-bottom: 0.125rem;
+  flex-shrink: 0;
+}
+
+/* Text styling */
+#primary-tools .add-new-section {
+  font-family: inherit;
+  --tw-text-opacity: 1;
+}
+
+/* Ensure the br tag works properly */
+#primary-tools .add-new-section br {
+  display: block;
+  margin: 0.125rem 0;
+}
+
+/* Active state */
+#primary-tools .add-new-section:active {
+  transform: scale(0.98);
+}
+
+/* Container styling */
+#primary-tools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+/* Custom properties fallback for older browsers */
+@supports not (color: hsl(var(--background))) {
+  #primary-tools .add-new-section {
+    background-color: rgba(38, 38, 38, 0.5);
+    border-color: rgb(38, 38, 38);
+    color: rgb(115, 115, 115);
+  }
+  
+  #primary-tools .add-new-section:hover {
+    background-color: rgb(38, 38, 38);
+    color: rgb(255, 255, 255);
+  }
+  
+  #primary-tools .add-new-section:focus-visible {
+    outline: 2px solid rgb(62, 207, 142);
+  }
+}
+}
