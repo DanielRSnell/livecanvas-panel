@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { MonacoEditor } from '@/components/editor/MonacoEditor';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertCircle, RefreshCw, Code2, Save, RotateCcw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Code2, Save, RotateCcw, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SelectedElement } from '@/types';
 
@@ -28,6 +28,7 @@ export function LiveCanvasHTMLEditor({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isEditableMode, setIsEditableMode] = useState(false);
   
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -180,6 +181,146 @@ export function LiveCanvasHTMLEditor({
     loadHTMLContent();
   }, [loadHTMLContent]);
 
+  // Editable region assignment function
+  const assignEditableRegions = useCallback(() => {
+    try {
+      // Get the main LiveCanvas content area
+      const previewDoc = (document.querySelector('#previewiframe') as HTMLIFrameElement)?.contentDocument;
+      if (!previewDoc) {
+        console.warn('Preview iframe not found');
+        return;
+      }
+
+      const mainContent = previewDoc.querySelector('#lc-main');
+      if (!mainContent) {
+        console.warn('#lc-main not found in preview');
+        return;
+      }
+
+      // Target inline text elements
+      const targetSelectors = 'h1, h2, h3, h4, h5, h6, p, span, li';
+      const elements = mainContent.querySelectorAll(targetSelectors);
+
+      let processedCount = 0;
+
+      elements.forEach(element => {
+        // Skip if already has editable attribute
+        if (element.hasAttribute('editable')) {
+          return;
+        }
+
+        const childNodes = Array.from(element.childNodes);
+        const hasTextNodes = childNodes.some(node => 
+          node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+        );
+        const hasElementNodes = childNodes.some(node => 
+          node.nodeType === Node.ELEMENT_NODE
+        );
+
+        if (hasTextNodes && !hasElementNodes) {
+          // Simple case: only text content
+          element.setAttribute('editable', 'inline');
+          processedCount++;
+        } else if (hasTextNodes && hasElementNodes) {
+          // Mixed content: needs special handling
+          processMixedContent(element);
+          processedCount++;
+        }
+        // Skip elements with only child elements
+      });
+
+      console.log(`Editable regions assigned to ${processedCount} elements`);
+      
+      // Refresh the HTML editor content
+      loadHTMLContent();
+      
+    } catch (error) {
+      console.error('Error assigning editable regions:', error);
+      setError('Failed to assign editable regions');
+    }
+  }, [loadHTMLContent]);
+
+  // Process mixed content (text + elements)
+  const processMixedContent = useCallback((element: Element) => {
+    const childNodes = Array.from(element.childNodes);
+    const targetTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'li'];
+    
+    childNodes.forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+        // Wrap orphan text in span with editable attribute
+        const span = element.ownerDocument.createElement('span');
+        span.setAttribute('editable', 'inline');
+        span.textContent = node.textContent;
+        element.replaceChild(span, node);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const nodeElement = node as Element;
+        if (targetTags.includes(nodeElement.tagName.toLowerCase())) {
+          // Check if this child element has only text content
+          const hasOnlyText = Array.from(nodeElement.childNodes).every(childNode =>
+            childNode.nodeType === Node.TEXT_NODE
+          );
+          
+          if (hasOnlyText) {
+            nodeElement.setAttribute('editable', 'inline');
+          }
+        }
+      }
+    });
+  }, []);
+
+  // Remove editable regions
+  const removeEditableRegions = useCallback(() => {
+    try {
+      const previewDoc = (document.querySelector('#previewiframe') as HTMLIFrameElement)?.contentDocument;
+      if (!previewDoc) return;
+
+      const mainContent = previewDoc.querySelector('#lc-main');
+      if (!mainContent) return;
+
+      // Remove all editable attributes
+      const editableElements = mainContent.querySelectorAll('[editable="inline"]');
+      let removedCount = 0;
+
+      editableElements.forEach(element => {
+        element.removeAttribute('editable');
+        removedCount++;
+        
+        // If it's a span that was created for wrapping orphan text, we might want to unwrap it
+        // This is a simplified approach - a more complex implementation would track original structure
+        if (element.tagName.toLowerCase() === 'span' && 
+            !element.hasAttribute('class') && 
+            !element.hasAttribute('id') &&
+            element.childNodes.length === 1 &&
+            element.childNodes[0].nodeType === Node.TEXT_NODE) {
+          // This looks like a span we added - unwrap it
+          const parent = element.parentNode;
+          if (parent) {
+            parent.replaceChild(element.childNodes[0], element);
+          }
+        }
+      });
+
+      console.log(`Removed editable attributes from ${removedCount} elements`);
+      
+      // Refresh the HTML editor content
+      loadHTMLContent();
+      
+    } catch (error) {
+      console.error('Error removing editable regions:', error);
+      setError('Failed to remove editable regions');
+    }
+  }, [loadHTMLContent]);
+
+  // Toggle editable mode
+  const handleEditableToggle = useCallback(() => {
+    if (isEditableMode) {
+      removeEditableRegions();
+    } else {
+      assignEditableRegions();
+    }
+    setIsEditableMode(!isEditableMode);
+  }, [isEditableMode, assignEditableRegions, removeEditableRegions]);
+
   // Load content when element changes
   useEffect(() => {
     loadHTMLContent();
@@ -218,9 +359,35 @@ export function LiveCanvasHTMLEditor({
               Unsaved
             </Badge>
           )}
+          {isEditableMode && (
+            <Badge variant="outline" className="text-xs bg-blue-600/10 text-blue-400 border-blue-600/30">
+              Editable Mode
+            </Badge>
+          )}
         </div>
         
         <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={isEditableMode ? "default" : "ghost"}
+                size="sm"
+                onClick={handleEditableToggle}
+                className={cn(
+                  "h-6 w-6 p-0",
+                  isEditableMode && "bg-blue-600 hover:bg-blue-700 text-white"
+                )}
+                disabled={isLoading}
+                title="Enable inline editing for text elements"
+              >
+                <Edit3 className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isEditableMode ? 'Disable' : 'Enable'} inline editing for text elements
+            </TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

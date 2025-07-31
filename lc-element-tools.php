@@ -57,6 +57,18 @@ class LC_Element_Tools {
      */
     private function init_hooks() {
         add_action('lc_editor_header', [$this, 'add_livecanvas_elements']);
+        add_action('plugins_loaded', [$this, 'load_timber_integration']);
+    }
+    
+    /**
+     * Load Timber integration if available
+     */
+    public function load_timber_integration() {
+        // $timber_integration_file = LC_ELEMENT_TOOLS_PATH . 'includes/timber/timber-integration.php';
+        
+        // if (file_exists($timber_integration_file)) {
+        //     require_once $timber_integration_file;
+        // }
     }
     
     /**

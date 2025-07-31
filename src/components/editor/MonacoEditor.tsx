@@ -297,30 +297,9 @@ export function MonacoEditor({
       }
     }, 100);
     
-    // Auto-format the initial value if it's HTML
-    if (value && language === 'html') {
-      try {
-        const formatted = await formatHtml(value);
-        if (formatted !== value) {
-          editor.setValue(formatted);
-          setLastFormattedValue(formatted);
-          // Notify parent of the formatted content
-          onChange(formatted);
-        } else {
-          setLastFormattedValue(value);
-        }
-      } catch (error) {
-        console.warn('Initial formatting failed, using basic formatter:', error);
-        const formatted = basicFormatHtml(value);
-        if (formatted !== value) {
-          editor.setValue(formatted);
-          setLastFormattedValue(formatted);
-          onChange(formatted);
-        } else {
-          setLastFormattedValue(value);
-        }
-      }
-    }
+    // EXACT LiveCanvas behavior: DO NOT auto-format HTML on load
+    // LiveCanvas preserves the original formatting from the source document
+    setLastFormattedValue(value);
     
     // Add custom commands optimized for HTML editing
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {

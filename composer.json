@@ -1,0 +1,29 @@
+{
+  "name": "lc-blocksy/lc-element-tools",
+  "description": "LC Element Tools with Timber/Twig integration for LiveCanvas",
+  "type": "wordpress-plugin",
+  "version": "2.0.1",
+  "authors": [
+    {
+      "name": "Matt",
+      "role": "WordPress Plugin Engineer"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "timber/timber": "^2.0",
+    "twig/twig": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "LCElementTools\\": "includes/"
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "optimize-autoloader": true,
+    "classmap-authoritative": true,
+    "apcu-autoloader": true
+  }
+}
